@@ -937,15 +937,19 @@ function createApp() {
   function updateHeader() {
     const running = servers.filter((s) => s.status === "running").length;
     const stopped = servers.filter((s) => s.status === "stopped").length;
+    const starting = servers.filter((s) => s.status === "starting").length;
+    const stopping = servers.filter((s) => s.status === "stopping").length;
     const shared = servers.filter((s) => s.sharedWith && s.sharedWith.length > 0).length;
     const total = servers.length;
     const agents = [...new Set(servers.map((s) => s.tool))];
     const refreshAgo = Math.round((Date.now() - lastRefreshTime.getTime()) / 1000);
     const refreshStr = refreshAgo < 2 ? "just now" : `${refreshAgo}s ago`;
     const sharedStr = shared > 0 ? `  {magenta-fg}~ ${shared} Shared{/}` : "";
+    const startingStr = starting > 0 ? `  {cyan-fg}… ${starting} Starting{/}` : "";
+    const stoppingStr = stopping > 0 ? `  {yellow-fg}… ${stopping} Stopping{/}` : "";
     header.setContent(
       `{center}{bold}  MCP Server Manager{/bold}{/center}\n` +
-        `{center}{green-fg}* ${running} Running{/}  {red-fg}o ${stopped} Stopped{/}${sharedStr}  ` +
+        `{center}{green-fg}* ${running} Running{/}  {red-fg}o ${stopped} Stopped{/}${startingStr}${stoppingStr}${sharedStr}  ` +
         `Total: ${total}  |  Agents: ${agents.join(", ") || "none found"}` +
         `  |  {gray-fg}Refreshed: ${refreshStr}{/}{/center}`
     );
@@ -1027,6 +1031,10 @@ function createApp() {
       statusTag = "{green-fg}* SHARED{/} ".padEnd(COL.status + 17);
     } else if (server.status === "running") {
       statusTag = "{green-fg}* RUNNING{/}".padEnd(COL.status + 18);
+    } else if (server.status === "starting") {
+      statusTag = "{cyan-fg}… STARTING{/}".padEnd(COL.status + 18);
+    } else if (server.status === "stopping") {
+      statusTag = "{yellow-fg}… STOPPING{/}".padEnd(COL.status + 18);
     } else if (server.status === "stopped" && isShared) {
       statusTag = "{magenta-fg}~ SHARED{/} ".padEnd(COL.status + 18);
     } else if (server.status === "stopped") {
@@ -1170,6 +1178,10 @@ function createApp() {
       statusStr = "{green-fg}* SHARED{/} {gray-fg}(process shared with " + server.sharedWith.join(", ") + "){/}";
     } else if (server.status === "running") {
       statusStr = "{green-fg}* RUNNING{/}";
+    } else if (server.status === "starting") {
+      statusStr = "{cyan-fg}… STARTING{/}";
+    } else if (server.status === "stopping") {
+      statusStr = "{yellow-fg}… STOPPING{/}";
     } else if (server.status === "stopped" && isShared) {
       statusStr = "{magenta-fg}~ SHARED{/} {gray-fg}(process owned by " + server.sharedWith.join(", ") + "){/}";
     } else {
@@ -1251,10 +1263,20 @@ function createApp() {
 
     log(`Restarting {bold}${server.tool} / ${server.name}{/}...`);
 
-    if (server.status === "running") {
+    const wasRunning = server.status === "running";
+    if (wasRunning) {
+      server.status = "stopping";
+      updateTable();
+      updateHeader();
+      screen.render();
       const killResult = killServer(server);
       log(`  ${killResult.message}`);
     }
+
+    server.status = "starting";
+    updateTable();
+    updateHeader();
+    screen.render();
 
     setTimeout(() => {
       const startResult = startServer(server);
@@ -1270,7 +1292,7 @@ function createApp() {
         updateHeader();
         screen.render();
       }, 1500);
-    }, 1000);
+    }, wasRunning ? 1000 : 100);
   });
 
   screen.key(["k"], () => {
@@ -1282,6 +1304,11 @@ function createApp() {
       log(`{yellow-fg}${server.tool} / ${server.name} is not running.{/}`);
       return;
     }
+
+    server.status = "stopping";
+    updateTable();
+    updateHeader();
+    screen.render();
 
     log(`Killing {bold}${server.tool} / ${server.name}{/} (PID ${server.pid})...`);
     const result = killServer(server);
@@ -1314,6 +1341,13 @@ function createApp() {
     }
 
     log(`Killing all ${running.length} running server(s)...`);
+    for (const server of running) {
+      server.status = "stopping";
+    }
+    updateTable();
+    updateHeader();
+    screen.render();
+
     const killedPids = new Set();
     let killed = 0;
     let failed = 0;
@@ -1380,6 +1414,10 @@ function createApp() {
       }
 
       const server = stopped[idx++];
+      server.status = "starting";
+      updateTable();
+      updateHeader();
+      screen.render();
       const result = startServer(server);
       if (result.success) {
         log(`  {green-fg}${result.message}{/}`);
