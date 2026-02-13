@@ -4,10 +4,48 @@
   "description": "Interactive TUI for monitoring and restarting MCP servers across Cursor, VS Code, Windsurf, Claude Desktop, Claude Code, and GitHub Copilot",
   "main": "index.js",
   "bin": {
-    "mcp-manager": "./index.js"
+    "mcp-manager": "./index.js",
+    "simple-mcp-manager": "./index.js"
   },
   "scripts": {
     "start": "node index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-servers",
+    "cursor",
+    "vscode",
+    "vs-code",
+    "windsurf",
+    "claude",
+    "claude-desktop",
+    "claude-code",
+    "github-copilot",
+    "copilot",
+    "ai-tools",
+    "tui",
+    "terminal-ui",
+    "cli",
+    "server-manager",
+    "process-manager",
+    "restart",
+    "monitor",
+    "stdio",
+    "cross-platform",
+    "wsl"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tamb/simple-mcp-manager.git"
+  },
+  "homepage": "https://github.com/tamb/simple-mcp-manager#readme",
+  "bugs": {
+    "url": "https://github.com/tamb/simple-mcp-manager/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "blessed": "^0.1.81"
