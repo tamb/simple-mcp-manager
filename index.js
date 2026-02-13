@@ -1305,7 +1305,7 @@ function createApp() {
     }, 3000);
   });
 
-  screen.key(["K"], () => {
+  screen.key(["S-k", "K"], () => {
     if (detailPopup.visible) return;
     const running = servers.filter((s) => s.status === "running");
     if (running.length === 0) {
