@@ -1,14 +1,15 @@
 {
   "name": "simple-mcp-manager",
-  "version": "0.0.3",
-  "description": "Interactive TUI for monitoring and restarting MCP servers across Cursor, VS Code, Windsurf, Claude Desktop, Claude Code, and GitHub Copilot",
+  "version": "0.1.0",
+  "description": "Interactive TUI and Web UI for monitoring and restarting MCP servers across Cursor, VS Code, Windsurf, Claude Desktop, Claude Code, and GitHub Copilot",
   "main": "index.js",
   "bin": {
     "mcp-manager": "./index.js",
     "simple-mcp-manager": "./index.js"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "start:ui": "node index.js --ui"
   },
   "keywords": [
     "mcp",
@@ -26,6 +27,9 @@
     "ai-tools",
     "tui",
     "terminal-ui",
+    "web-ui",
+    "browser",
+    "localhost",
     "cli",
     "server-manager",
     "process-manager",

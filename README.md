@@ -11,14 +11,21 @@ Works on **Windows**, **macOS**, **Linux**, and **WSL**.
 Run with [npx](https://docs.npmjs.com/cli/v8/commands/npx) — no clone or global install needed:
 
 ```bash
+# Terminal UI mode (default)
 npx simple-mcp-manager
+
+# Web UI mode - opens in your browser at http://localhost:3000
+npx simple-mcp-manager --ui
+# or shorthand:
+npx simple-mcp-manager -ui
 ```
 
 Or install and run:
 
 ```bash
 npm install -g simple-mcp-manager
-mcp-manager
+mcp-manager              # Terminal UI mode (default)
+mcp-manager --ui         # Web UI mode
 ```
 
 Or clone and run locally:
@@ -27,7 +34,8 @@ Or clone and run locally:
 git clone https://github.com/tamb/simple-mcp-manager.git
 cd simple-mcp-manager
 npm install
-npm start
+npm start                # Terminal UI mode
+npm run start:ui         # Web UI mode
 ```
 
 ## What is this?
@@ -52,7 +60,7 @@ A **standalone CLI** you run in a separate terminal. It is **not** an MCP server
 
 Most tools use `{ "mcpServers": { ... } }`; GitHub Copilot and VS Code use `{ "servers": { ... } }`. The manager auto-detects both.
 
-## Keybindings
+## Keybindings (Terminal UI)
 
 | Key | Action |
 |-----|--------|
@@ -64,6 +72,43 @@ Most tools use `{ "mcpServers": { ... } }`; GitHub Copilot and VS Code use `{ "s
 | `d` | Show server details |
 | Up/Down | Navigate server list |
 | `q` | Quit |
+
+## Web UI Mode
+
+Run with the `--ui` (or `-ui`) flag to start a web-based interface accessible at `http://localhost:3000` (or the next available port):
+
+```bash
+mcp-manager --ui
+```
+
+The Web UI provides the same functionality as the terminal UI but in your browser:
+
+- **Visual server table** with sortable columns and color-coded status indicators
+- **Real-time updates** every 5 seconds (15 seconds on WSL)
+- **One-click actions**: Restart, Kill, Kill All, Restart All Stopped
+- **Server details modal** with full configuration and environment variables (secrets masked)
+- **Log viewer** for servers started by the manager
+- **Activity log** showing all actions and results
+- **Keyboard shortcuts** matching the terminal UI:
+  - `r` - Restart selected server
+  - `k` - Kill selected server
+  - `K` - Kill all running servers
+  - `a` - Restart all stopped servers
+  - `d` - Show server details
+  - `l` - Show server logs (from details modal)
+  - `F5` - Refresh server list
+  - `Esc` / `Enter` - Close modals
+  - `↑` / `↓` - Navigate server list
+
+The Web UI is a self-contained single-page application with no external dependencies — it works entirely offline after the initial page load.
+
+### Port Configuration
+
+The Web UI listens on port 3000 by default. If that port is in use, it automatically tries 3001, 3002, etc., up to 3010. You can also set a custom port via the `PORT` environment variable:
+
+```bash
+PORT=8080 mcp-manager --ui
+```
 
 ## Cross-platform support
 
