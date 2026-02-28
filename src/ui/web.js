@@ -1202,9 +1202,10 @@ async function findAvailablePort(startPort, maxAttempts = 10) {
 
 /**
  * Create and start the web UI HTTP server.
+ * @param {number} preferredPort - The preferred port to use (defaults to 3000)
  */
-async function createWebApp() {
-  fileLog("INFO", "Starting Web UI mode");
+async function createWebApp(preferredPort = 3000) {
+  fileLog("INFO", "Starting Web UI mode", { preferredPort });
 
   // Load servers and refresh statuses (shared state for web mode)
   let servers = loadAllServers();
@@ -1256,7 +1257,7 @@ async function createWebApp() {
   }, REFRESH_MS);
 
   // Create HTTP server
-  const port = await findAvailablePort(parseInt(process.env.PORT, 10) || 3000);
+  const port = await findAvailablePort(preferredPort);
 
   const server = http.createServer((req, res) => {
     const parsedUrl = url.parse(req.url, true);

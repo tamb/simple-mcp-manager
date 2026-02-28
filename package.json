@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node index.js",
-    "start:ui": "node index.js --ui"
+    "start:ui": "node index.js --ui",
+    "start:ui:port": "node index.js --ui --port 3000"
   },
   "keywords": [
     "mcp",

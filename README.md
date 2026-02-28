@@ -16,8 +16,9 @@ npx simple-mcp-manager
 
 # Web UI mode - opens in your browser at http://localhost:3000
 npx simple-mcp-manager --ui
-# or shorthand:
-npx simple-mcp-manager -ui
+
+# Web UI mode with custom port
+npx simple-mcp-manager --ui --port 8080
 ```
 
 Or install and run:
@@ -75,7 +76,7 @@ Most tools use `{ "mcpServers": { ... } }`; GitHub Copilot and VS Code use `{ "s
 
 ## Web UI Mode
 
-Run with the `--ui` (or `-ui`) flag to start a web-based interface accessible at `http://localhost:3000` (or the next available port):
+Run with the `--ui` flag to start a web-based interface accessible at `http://localhost:3000` (or the next available port):
 
 ```bash
 mcp-manager --ui
@@ -104,10 +105,10 @@ The Web UI is a self-contained single-page application with no external dependen
 
 ### Port Configuration
 
-The Web UI listens on port 3000 by default. If that port is in use, it automatically tries 3001, 3002, etc., up to 3010. You can also set a custom port via the `PORT` environment variable:
+The Web UI listens on port 3000 by default. If that port is in use, it automatically tries 3001, 3002, etc., up to 3010. You can specify a custom port using the `--port` flag:
 
 ```bash
-PORT=8080 mcp-manager --ui
+mcp-manager --ui --port 8080
 ```
 
 ## Cross-platform support
