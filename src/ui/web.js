@@ -382,12 +382,13 @@ function generateWebUIHTML() {
       margin-right: 8px;
     }
 
-    .log-line .log-type-err {
-      color: var(--color-stopped);
+    /* Stream labels: stderr is not treated as “error” — many servers log normally to stderr */
+    .log-line .log-stream-stderr {
+      color: #22d3ee;
     }
 
-    .log-line .log-type-out {
-      color: var(--color-running);
+    .log-line .log-stream-stdout {
+      color: #4ade80;
     }
 
     .no-logs {
@@ -1095,8 +1096,9 @@ function generateWebUIHTML() {
         const logLines = server.logs && server.logs.length > 0
           ? server.logs.map(entry => {
               const time = new Date(entry.ts).toLocaleTimeString();
-              const typeClass = entry.type === 'err' ? 'log-type-err' : 'log-type-out';
-              const typeLabel = entry.type === 'err' ? 'err' : 'out';
+              const stream = entry.stream || (entry.type === 'err' ? 'stderr' : 'stdout');
+              const typeClass = stream === 'stderr' ? 'log-stream-stderr' : 'log-stream-stdout';
+              const typeLabel = stream === 'stderr' ? 'stderr' : 'stdout';
               let line = entry.line;
               if (line.length > 200) line = line.slice(0, 197) + '...';
               return \`<div class="log-line"><span class="log-time">\${time}</span> [<span class="\${typeClass}">\${typeLabel}</span>] \${escapeHtml(line)}</div>\`;

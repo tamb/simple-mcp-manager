@@ -519,18 +519,18 @@ function startServer(server) {
       const lines = data.toString().split("\n");
       for (const line of lines) {
         if (line.trim()) {
-          server.logs.push({ ts: Date.now(), type: "out", line });
+          server.logs.push({ ts: Date.now(), stream: "stdout", line });
           if (server.logs.length > maxLogs) server.logs.shift();
         }
       }
     });
 
-    // Capture stderr
+    // Capture stderr (many Node MCP servers write normal logs here, not errors)
     child.stderr.on("data", (data) => {
       const lines = data.toString().split("\n");
       for (const line of lines) {
         if (line.trim()) {
-          server.logs.push({ ts: Date.now(), type: "err", line });
+          server.logs.push({ ts: Date.now(), stream: "stderr", line });
           if (server.logs.length > maxLogs) server.logs.shift();
         }
       }

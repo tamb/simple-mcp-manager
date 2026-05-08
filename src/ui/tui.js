@@ -457,8 +457,11 @@ function createApp() {
       const logLines = server.logs && server.logs.length > 0
         ? server.logs.map((entry) => {
             const ts = new Date(entry.ts).toLocaleTimeString("en-US", { hour12: false });
-            const typeColor = entry.type === "err" ? "red-fg" : "green-fg";
-            const typeLabel = entry.type === "err" ? "err" : "out";
+            const stream =
+              entry.stream ||
+              (entry.type === "err" ? "stderr" : "stdout");
+            const typeColor = stream === "stderr" ? "cyan-fg" : "green-fg";
+            const typeLabel = stream === "stderr" ? "stderr" : "stdout";
             // Truncate very long lines
             let line = entry.line;
             if (line.length > 200) {
@@ -509,13 +512,14 @@ function createApp() {
   detailPopup.key(["l"], () => {
     const server = servers[selectedRow];
     if (!server) return;
+    detailPopup.hide();
     showLogs(server);
   });
 
   logPopup.key(["escape", "enter", "q"], () => {
     logPopup.hide();
-    detailPopup.show();
-    detailPopup.focus();
+    detailPopup.hide();
+    tableList.focus();
     screen.render();
   });
 
@@ -732,8 +736,8 @@ function createApp() {
   screen.key(["l"], () => {
     if (logPopup.visible) {
       logPopup.hide();
-      detailPopup.show();
-      detailPopup.focus();
+      detailPopup.hide();
+      tableList.focus();
       screen.render();
       return;
     }
