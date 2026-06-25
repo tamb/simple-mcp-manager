@@ -1,0 +1,76 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.1/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!!**/node_modules", "!!**/logs"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    },
+    "globals": [
+      "require",
+      "module",
+      "exports",
+      "process",
+      "__dirname",
+      "__filename",
+      "console",
+      "Buffer",
+      "setTimeout",
+      "setInterval",
+      "clearInterval"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUnusedVariables": "warn"
+      },
+      "style": {
+        "noParameterAssign": "off",
+        "useNodejsImportProtocol": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/ui/web/static/**"],
+      "javascript": {
+        "globals": [
+          "window",
+          "document",
+          "fetch",
+          "setInterval",
+          "clearInterval",
+          "URL",
+          "encodeURIComponent",
+          "decodeURIComponent"
+        ]
+      },
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useButtonType": "off"
+          },
+          "complexity": {
+            "noImportantStyles": "off"
+          }
+        }
+      }
+    }
+  ]
+}

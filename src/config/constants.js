@@ -1,9 +1,7 @@
-"use strict";
-
-const fs = require("fs");
-const path = require("path");
-const os = require("os");
-const { execSync } = require("child_process");
+const fs = require("node:fs");
+const path = require("node:path");
+const os = require("node:os");
+const { execSync } = require("node:child_process");
 const { fileLog } = require("../utils/logger");
 
 const IS_WIN = process.platform === "win32";
@@ -40,38 +38,50 @@ const HOME = os.homedir();
 // On WSL the AI agents live on both sides: Cursor uses the WSL homedir
 // (~/.cursor/mcp.json) while GitHub Copilot uses the Windows user profile
 // (~/.mcp.json on the Win side). We need to scan both.
-const WIN_HOME = IS_WSL ? (() => {
-  try {
-    const winPath = execSync('cmd.exe /C "echo %USERPROFILE%"', {
-      encoding: "utf-8", timeout: 5000,
-    }).trim().replace(/\r/g, "");
-    const resolved = execSync(`wslpath -u "${winPath}"`, {
-      encoding: "utf-8", timeout: 3000,
-    }).trim();
-    fileLog("INFO", `WIN_HOME resolved: ${resolved} (from ${winPath})`);
-    return resolved;
-  } catch (e) {
-    fileLog("ERROR", "Failed to resolve WIN_HOME", e);
-    return null;
-  }
-})() : null;
+const WIN_HOME = IS_WSL
+  ? (() => {
+      try {
+        const winPath = execSync('cmd.exe /C "echo %USERPROFILE%"', {
+          encoding: "utf-8",
+          timeout: 5000,
+        })
+          .trim()
+          .replace(/\r/g, "");
+        const resolved = execSync(`wslpath -u "${winPath}"`, {
+          encoding: "utf-8",
+          timeout: 3000,
+        }).trim();
+        fileLog("INFO", `WIN_HOME resolved: ${resolved} (from ${winPath})`);
+        return resolved;
+      } catch (e) {
+        fileLog("ERROR", "Failed to resolve WIN_HOME", e);
+        return null;
+      }
+    })()
+  : null;
 
-const APPDATA = process.env.APPDATA || (() => {
-  if (!IS_WSL) return "";
-  try {
-    const winPath = execSync('cmd.exe /C "echo %APPDATA%"', {
-      encoding: "utf-8", timeout: 5000,
-    }).trim().replace(/\r/g, "");
-    const resolved = execSync(`wslpath -u "${winPath}"`, {
-      encoding: "utf-8", timeout: 3000,
-    }).trim();
-    fileLog("INFO", `APPDATA resolved: ${resolved} (from ${winPath})`);
-    return resolved;
-  } catch (e) {
-    fileLog("ERROR", "Failed to resolve APPDATA", e);
-    return "";
-  }
-})();
+const APPDATA =
+  process.env.APPDATA ||
+  (() => {
+    if (!IS_WSL) return "";
+    try {
+      const winPath = execSync('cmd.exe /C "echo %APPDATA%"', {
+        encoding: "utf-8",
+        timeout: 5000,
+      })
+        .trim()
+        .replace(/\r/g, "");
+      const resolved = execSync(`wslpath -u "${winPath}"`, {
+        encoding: "utf-8",
+        timeout: 3000,
+      }).trim();
+      fileLog("INFO", `APPDATA resolved: ${resolved} (from ${winPath})`);
+      return resolved;
+    } catch (e) {
+      fileLog("ERROR", "Failed to resolve APPDATA", e);
+      return "";
+    }
+  })();
 
 const XDG_CONFIG = process.env.XDG_CONFIG_HOME || path.join(HOME, ".config");
 

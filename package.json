@@ -1,16 +1,21 @@
 {
   "name": "simple-mcp-manager",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "description": "Interactive TUI and Web UI for monitoring and restarting MCP servers across Cursor, VS Code, Windsurf, Claude Desktop, Claude Code, and GitHub Copilot",
   "main": "index.js",
   "bin": {
     "mcp-manager": "./index.js",
+    "mcp-mgr": "./index.js",
     "simple-mcp-manager": "./index.js"
   },
   "scripts": {
     "start": "node index.js",
     "start:ui": "node index.js --ui",
-    "start:ui:port": "node index.js --ui --port 3000"
+    "start:ui:port": "node index.js --ui --port 3000",
+    "test": "node --test test/**/*.test.js",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check": "biome check --write ."
   },
   "keywords": [
     "mcp",
@@ -52,7 +57,16 @@
   "engines": {
     "node": ">=18"
   },
+  "files": [
+    "index.js",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "blessed": "^0.1.81"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.1"
   }
 }

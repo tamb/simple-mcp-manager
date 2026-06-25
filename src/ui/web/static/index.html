@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Server Manager</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="header">
+    <h1>MCP Server Manager</h1>
+    <div class="header-stats">
+      <span class="stat stat-running">● <span id="stat-running">0</span> Running</span>
+      <span class="stat stat-stopped">● <span id="stat-stopped">0</span> Stopped</span>
+      <span class="stat stat-shared">● <span id="stat-shared">0</span> Shared</span>
+      <span class="stat stat-starting">● <span id="stat-starting">0</span> Starting</span>
+      <span id="stat-agents">Agents: none</span>
+      <span id="stat-refresh" style="color: var(--text-muted);">Refreshed: just now</span>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="search-input" class="search-input" placeholder="Search servers..." aria-label="Search servers">
+    <button class="btn btn-primary" id="btn-refresh" title="Refresh (F5)">Refresh</button>
+    <button class="btn" id="btn-restart" title="Restart selected (r)">Restart</button>
+    <button class="btn btn-danger" id="btn-kill" title="Kill selected (k)">Kill</button>
+    <button class="btn btn-danger" id="btn-kill-all" title="Kill all running (K)">Kill All</button>
+    <button class="btn btn-primary" id="btn-restart-all" title="Restart all stopped (a)">Restart All Stopped</button>
+    <button class="btn" id="btn-details" title="View details (d)">Details</button>
+    <button class="btn" id="btn-logs" title="View logs (l)">Logs</button>
+    <button class="btn" id="btn-export-logs" title="Export logs to file">Export Logs</button>
+    <span class="keyboard-help" style="margin-left: auto;">
+      <kbd>r</kbd> Restart <kbd>k</kbd> Kill <kbd>K</kbd> Kill All <kbd>a</kbd> Restart All <kbd>d</kbd> Details <kbd>l</kbd> Logs <kbd>F5</kbd> Refresh
+    </span>
+  </div>
+
+  <div class="table-container">
+    <table id="servers-table">
+      <thead>
+        <tr>
+          <th data-sort="tool">Agent <span class="sort-indicator">▲</span></th>
+          <th data-sort="name">Server <span class="sort-indicator"></span></th>
+          <th data-sort="status">Status <span class="sort-indicator"></span></th>
+          <th data-sort="pid">PID <span class="sort-indicator"></span></th>
+          <th data-sort="command">Command <span class="sort-indicator"></span></th>
+          <th data-sort="type">Type <span class="sort-indicator"></span></th>
+          <th data-sort="configPath">Config Path <span class="sort-indicator"></span></th>
+        </tr>
+      </thead>
+      <tbody id="servers-tbody">
+        <tr><td colspan="7" class="loading">Loading servers...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="log-panel">
+    <div class="log-header">
+      <span>Activity Log</span>
+      <span id="refresh-interval-label" style="font-weight: normal; color: var(--text-muted);">Auto-refreshing...</span>
+    </div>
+    <div class="log-content" id="log-content">
+      <div class="log-entry">MCP Server Manager started. Press F5 to refresh manually.</div>
+    </div>
+  </div>
+
+  <!-- Details Modal -->
+  <div class="modal-overlay" id="details-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Server Details</h2>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <div class="modal-content" id="details-content">
+      </div>
+    </div>
+  </div>
+
+  <!-- Logs Modal -->
+  <div class="modal-overlay" id="logs-modal">
+    <div class="modal log-viewer">
+      <div class="modal-header">
+        <h2>Server Logs</h2>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <div class="modal-content">
+        <div class="log-viewer-content" id="logs-content">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

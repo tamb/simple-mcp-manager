@@ -1,7 +1,5 @@
-"use strict";
-
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 // Compute project root (parent of src/ directory)
 const PROJECT_ROOT = path.join(__dirname, "..", "..");
@@ -17,13 +15,13 @@ let LOG_FILE = null;
  */
 function initLogger() {
   if (LOG_FILE) return; // Already initialized
-  
+
   try {
     fs.mkdirSync(LOGS_DIR, { recursive: true });
   } catch {
     // Ignore mkdir errors
   }
-  
+
   const now = new Date();
   const ts = now.toISOString().replace(/T/, "_").replace(/:/g, "-").replace(/\..+/, "");
   LOG_FILE = path.join(LOGS_DIR, `${ts}-log.txt`);
@@ -53,16 +51,17 @@ function fileLog(level, message, data) {
   try {
     const logFile = getLogFile();
     if (!logFile) return;
-    
+
     const ts = new Date().toISOString();
     let line = `[${ts}] [${level}] ${stripTags(message)}`;
     if (data !== undefined) {
-      const extra = data instanceof Error
-        ? `${data.message}\n${data.stack || ""}`
-        : JSON.stringify(data, null, 2);
+      const extra =
+        data instanceof Error
+          ? `${data.message}\n${data.stack || ""}`
+          : JSON.stringify(data, null, 2);
       line += `\n  ${extra.replace(/\n/g, "\n  ")}`;
     }
-    fs.appendFileSync(logFile, line + "\n");
+    fs.appendFileSync(logFile, `${line}\n`);
   } catch {
     // If we can't write the log file, silently continue — don't crash the app.
   }

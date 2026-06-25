@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "postgres": {
+      "command": "node",
+      "args": ["/path/to/server.js"]
+    }
+  }
+}

@@ -1,15 +1,30 @@
-"use strict";
-
-const fs = require("fs");
-const path = require("path");
-const { execSync, spawn } = require("child_process");
+const path = require("node:path");
+const http = require("node:http");
+const https = require("node:https");
+const { execSync, spawn } = require("node:child_process");
 const { fileLog } = require("../utils/logger");
 const { IS_WIN, IS_WSL } = require("../config/constants");
 
+// ── Process list cache (WSL/Windows queries are expensive) ────────────────
+
+const PROCESS_CACHE_TTL_MS = IS_WSL ? 3000 : 1000;
+/** @type {{ data: object[]|null, expires: number }} */
+let processCache = { data: null, expires: 0 };
+
+function clearProcessCache() {
+  processCache = { data: null, expires: 0 };
+}
+
 // ── Process Detection (Cross-Platform) ──────────────────────────────────────
 
-function getRunningProcesses() {
+function getRunningProcesses(forceRefresh = false) {
   try {
+    const now = Date.now();
+    if (!forceRefresh && processCache.data && now < processCache.expires) {
+      fileLog("DEBUG", `Process cache hit (${processCache.data.length} procs)`);
+      return processCache.data;
+    }
+
     let procs;
     if (IS_WIN) {
       procs = getRunningProcessesWindows();
@@ -18,6 +33,7 @@ function getRunningProcesses() {
     } else {
       procs = getRunningProcessesUnix();
     }
+    processCache = { data: procs, expires: now + PROCESS_CACHE_TTL_MS };
     fileLog("DEBUG", `Process query returned ${procs.length} process(es)`);
     return procs;
   } catch (e) {
@@ -52,7 +68,7 @@ function getRunningProcessesWSL() {
     const start = Date.now();
     const output = execSync(
       'powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Csv -NoTypeInformation"',
-      { encoding: "utf-8", timeout: 15000 }
+      { encoding: "utf-8", timeout: 15000 },
     );
     const elapsed = Date.now() - start;
 
@@ -89,7 +105,7 @@ function getRunningProcessesPowerShell() {
   try {
     const output = execSync(
       'powershell -NoProfile -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,CommandLine | ConvertTo-Csv -NoTypeInformation"',
-      { encoding: "utf-8", timeout: 15000 }
+      { encoding: "utf-8", timeout: 15000 },
     );
 
     const lines = output.split("\n").filter(Boolean);
@@ -146,10 +162,24 @@ function getSearchTerms(server) {
 
     // Still add the command itself as a fallback, but only if it's a
     // specific path (not a bare interpreter name like "node" or "python").
-    const basename = path.basename(server.command).replace(/\.exe$/i, "").toLowerCase();
+    const basename = path
+      .basename(server.command)
+      .replace(/\.exe$/i, "")
+      .toLowerCase();
     const genericInterpreters = new Set([
-      "node", "python", "python3", "ruby", "java", "deno", "bun",
-      "sh", "bash", "zsh", "cmd", "powershell", "pwsh",
+      "node",
+      "python",
+      "python3",
+      "ruby",
+      "java",
+      "deno",
+      "bun",
+      "sh",
+      "bash",
+      "zsh",
+      "cmd",
+      "powershell",
+      "pwsh",
     ]);
     if (!genericInterpreters.has(basename)) {
       searchTerms.push(path.basename(server.command));
@@ -200,7 +230,7 @@ function findServerClusters(server, processes) {
   // For each matching PID, walk up through parents to find if it connects
   // to another matching PID. Union-Find style grouping.
   const clusterOf = new Map(); // pid → cluster index
-  const clusters = [];         // array of Set<pid>
+  const clusters = []; // array of Set<pid>
 
   for (const pid of matchingPids) {
     // Check if any ancestor (within a reasonable depth) is already clustered
@@ -209,7 +239,7 @@ function findServerClusters(server, processes) {
     const chain = [pid];
     for (let depth = 0; depth < 20; depth++) {
       const proc = byPid.get(cur);
-      if (!proc || !proc.ppid) break;
+      if (!proc?.ppid) break;
       cur = proc.ppid;
       if (matchingPids.has(cur)) {
         chain.push(cur);
@@ -254,13 +284,17 @@ function refreshStatuses(servers) {
   const statusSummary = [];
 
   for (const server of servers) {
-    // HTTP servers don't have local processes - they're external HTTP endpoints
-    if (server.type === "http" || server.type === "https") {
-      server.status = "http";
+    server.searchTerms = getSearchTerms(server);
+
+    // HTTP/SSE servers don't have local processes - health checked separately
+    if (server.type === "http" || server.type === "https" || server.type === "sse") {
+      if (!server.httpHealth) {
+        server.status = "http";
+      }
       server.pid = null;
       server.clusterPids = [];
       server.processInfo = server.url || "";
-      statusSummary.push(`${server.tool}/${server.name}=HTTP(endpoint)`);
+      statusSummary.push(`${server.tool}/${server.name}=${server.status}(endpoint)`);
       continue;
     }
 
@@ -295,12 +329,13 @@ function refreshStatuses(servers) {
       // individually without using tree-kill (/T), which can cascade
       // into sibling server processes that share a common ancestor.
       server.clusterPids = [...assigned];
-      server.processInfo =
-        proc && proc.cpu !== "-" ? `CPU: ${proc.cpu}%  MEM: ${proc.mem}%` : "";
+      server.processInfo = proc && proc.cpu !== "-" ? `CPU: ${proc.cpu}%  MEM: ${proc.mem}%` : "";
 
       // Claim all PIDs in this cluster
       for (const p of assigned) claimedPids.add(p);
-      statusSummary.push(`${server.tool}/${server.name}=RUNNING(pid=${displayPid},cluster=${[...assigned].join("+")})`);
+      statusSummary.push(
+        `${server.tool}/${server.name}=RUNNING(pid=${displayPid},cluster=${[...assigned].join("+")})`,
+      );
     } else {
       server.status = "stopped";
       server.pid = null;
@@ -352,9 +387,7 @@ function refreshStatuses(servers) {
   for (const [, group] of pidToServers) {
     if (group.length > 1) {
       for (const s of group) {
-        s.sharedWith = group
-          .filter((o) => o !== s)
-          .map((o) => `${o.tool}/${o.name}`);
+        s.sharedWith = group.filter((o) => o !== s).map((o) => `${o.tool}/${o.name}`);
       }
     }
   }
@@ -382,6 +415,112 @@ function refreshStatuses(servers) {
   fileLog("DEBUG", `refreshStatuses completed in ${elapsed}ms`, statusSummary);
 }
 
+/**
+ * Probe HTTP/SSE endpoint reachability (non-blocking updates on server objects).
+ * @param {object[]} servers
+ * @returns {Promise<void>}
+ */
+async function probeHttpEndpoints(servers) {
+  const httpServers = servers.filter(
+    (s) => (s.type === "http" || s.type === "https" || s.type === "sse") && s.url,
+  );
+
+  await Promise.all(httpServers.map((server) => probeOneEndpoint(server)));
+}
+
+function applyHttpProbeResult(server, start, health, _statusCode, detail) {
+  server.httpLatencyMs = Date.now() - start;
+  server.httpHealth = health;
+  server.status = health === "ok" ? "http-ok" : health === "down" ? "http-down" : "http-unknown";
+  server.processInfo = detail;
+}
+
+function probeOneEndpoint(server) {
+  return new Promise((resolve) => {
+    let parsed;
+    try {
+      parsed = new URL(server.url);
+    } catch {
+      applyHttpProbeResult(server, Date.now(), "unknown", 0, "Invalid URL");
+      resolve();
+      return;
+    }
+
+    const start = Date.now();
+
+    function finish(health, statusCode, detail) {
+      applyHttpProbeResult(server, start, health, statusCode, detail);
+      resolve();
+    }
+
+    function request(method) {
+      const lib = parsed.protocol === "https:" ? https : http;
+      const req = lib.request(parsed, { method, timeout: 3000 }, (res) => {
+        res.resume();
+        if (method === "HEAD" && res.statusCode === 405) {
+          request("GET");
+          return;
+        }
+        const health = res.statusCode < 500 ? "ok" : "down";
+        finish(health, res.statusCode, `${res.statusCode} (${Date.now() - start}ms)`);
+      });
+
+      req.on("timeout", () => {
+        req.destroy();
+        finish("down", 0, "Timeout");
+      });
+
+      req.on("error", () => {
+        finish("down", 0, "Unreachable");
+      });
+
+      req.end();
+    }
+
+    request("HEAD");
+  });
+}
+
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function killUnixProcessTree(pid) {
+  try {
+    execSync(`pkill -TERM -P ${pid}`, { timeout: 3000, stdio: "pipe" });
+  } catch {}
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch {}
+
+  return new Promise((resolve) => {
+    const deadline = Date.now() + 2500;
+    const poll = () => {
+      if (!isProcessAlive(pid)) {
+        resolve(true);
+        return;
+      }
+      if (Date.now() >= deadline) {
+        try {
+          execSync(`pkill -KILL -P ${pid}`, { timeout: 3000, stdio: "pipe" });
+        } catch {}
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch {}
+        resolve(!isProcessAlive(pid));
+        return;
+      }
+      setTimeout(poll, 200);
+    };
+    poll();
+  });
+}
+
 // ── Process Management (Cross-Platform) ─────────────────────────────────────
 
 function killServer(server) {
@@ -394,11 +533,13 @@ function killServer(server) {
   // Use the cluster PIDs (all PIDs belonging to THIS server's process group)
   // so we can kill them individually without /T, which avoids cascading into
   // sibling servers that share a common ancestor process.
-  const pidsToKill = (server.clusterPids && server.clusterPids.length > 0)
-    ? [...server.clusterPids]
-    : [server.pid];
+  const pidsToKill =
+    server.clusterPids && server.clusterPids.length > 0 ? [...server.clusterPids] : [server.pid];
 
-  fileLog("INFO", `killServer: ${server.tool}/${server.name} display=${displayPid} cluster=[${pidsToKill.join(",")}]`);
+  fileLog(
+    "INFO",
+    `killServer: ${server.tool}/${server.name} display=${displayPid} cluster=[${pidsToKill.join(",")}]`,
+  );
 
   try {
     if (IS_WIN || IS_WSL) {
@@ -433,6 +574,7 @@ function killServer(server) {
       server.pid = null;
       server.clusterPids = [];
       server.logsCapturing = false;
+      clearProcessCache();
       const detail = `${killed}/${pidsToKill.length} process(es) killed`;
       fileLog("INFO", `Kill complete: ${server.name} — ${detail}`, { errors });
       return {
@@ -441,29 +583,25 @@ function killServer(server) {
       };
     } else {
       const pid = server.pid;
-      try {
-        execSync(`pkill -TERM -P ${pid}`, { timeout: 3000, stdio: "pipe" });
-      } catch {}
-      try { process.kill(pid, "SIGTERM"); } catch {}
-      setTimeout(() => {
-        try {
-          process.kill(pid, 0);
-          try { execSync(`pkill -KILL -P ${pid}`, { timeout: 3000, stdio: "pipe" }); } catch {}
-          process.kill(pid, "SIGKILL");
-        } catch {}
-      }, 2000);
+      killUnixProcessTree(pid).then(() => {
+        clearProcessCache();
+      });
       server.status = "stopped";
       server.pid = null;
       server.clusterPids = [];
       server.logsCapturing = false;
-      fileLog("INFO", `Kill success (Unix): ${server.name} PID ${pid}`);
+      clearProcessCache();
+      fileLog("INFO", `Kill initiated (Unix): ${server.name} PID ${pid}`);
       return { success: true, message: `Killed ${server.name} (PID ${pid})` };
     }
   } catch (e) {
     const stderr = e.stderr ? e.stderr.toString().trim() : "";
     const stdout = e.stdout ? e.stdout.toString().trim() : "";
     const errDetail = stderr || stdout || e.message;
-    fileLog("ERROR", `Kill failed: ${server.name} PID ${displayPid}`, { exit: e.status, error: errDetail });
+    fileLog("ERROR", `Kill failed: ${server.name} PID ${displayPid}`, {
+      exit: e.status,
+      error: errDetail,
+    });
     server.status = "stopped";
     server.pid = null;
     server.clusterPids = [];
@@ -475,8 +613,60 @@ function killServer(server) {
   }
 }
 
+/**
+ * Kill a server and wait for completion on Unix.
+ * @param {object} server
+ * @returns {Promise<{ success: boolean, message: string }>}
+ */
+async function killServerAsync(server) {
+  if (!server.pid) {
+    fileLog("WARN", `killServerAsync called for ${server.tool}/${server.name} but no PID`);
+    return { success: false, message: "No PID found" };
+  }
+
+  const displayPid = server.pid;
+  const pidsToKill =
+    server.clusterPids && server.clusterPids.length > 0 ? [...server.clusterPids] : [server.pid];
+
+  fileLog(
+    "INFO",
+    `killServerAsync: ${server.tool}/${server.name} display=${displayPid} cluster=[${pidsToKill.join(",")}]`,
+  );
+
+  try {
+    if (IS_WIN || IS_WSL) {
+      clearProcessCache();
+      return killServer(server);
+    }
+
+    await killUnixProcessTree(displayPid);
+    server.status = "stopped";
+    server.pid = null;
+    server.clusterPids = [];
+    server.logsCapturing = false;
+    clearProcessCache();
+    fileLog("INFO", `Kill success (Unix): ${server.name} PID ${displayPid}`);
+    return { success: true, message: `Killed ${server.name} (PID ${displayPid})` };
+  } catch (e) {
+    const errDetail = e.message || String(e);
+    fileLog("ERROR", `Kill failed: ${server.name} PID ${displayPid}`, { error: errDetail });
+    server.status = "stopped";
+    server.pid = null;
+    server.clusterPids = [];
+    server.logsCapturing = false;
+    clearProcessCache();
+    return {
+      success: false,
+      message: `Kill PID ${displayPid}: err="${errDetail}"`,
+    };
+  }
+}
+
 function startServer(server) {
-  fileLog("INFO", `startServer: ${server.tool}/${server.name} cmd="${server.command}" args=${JSON.stringify(server.args)}`);
+  fileLog(
+    "INFO",
+    `startServer: ${server.tool}/${server.name} cmd="${server.command}" args=${JSON.stringify(server.args)}`,
+  );
   const env = { ...process.env, ...server.env };
 
   const spawnOpts = {
@@ -568,6 +758,9 @@ module.exports = {
   getSearchTerms,
   findServerClusters,
   refreshStatuses,
+  probeHttpEndpoints,
+  clearProcessCache,
   killServer,
+  killServerAsync,
   startServer,
 };

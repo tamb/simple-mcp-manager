@@ -1,6 +1,4 @@
-"use strict";
-
-const path = require("path");
+const path = require("node:path");
 const { IS_WIN, HOME, APPDATA } = require("../config/constants");
 
 /**
@@ -20,15 +18,15 @@ function abbreviatePath(filePath, maxLen) {
   if (IS_WIN && APPDATA) {
     const appdata = APPDATA.replace(/\\/g, "/");
     if (p.startsWith(appdata)) {
-      p = "%APPDATA%" + p.slice(appdata.length);
+      p = `%APPDATA%${p.slice(appdata.length)}`;
     }
   }
   if (p.startsWith(home)) {
-    p = "~" + p.slice(home.length);
+    p = `~${p.slice(home.length)}`;
   }
 
   if (maxLen && p.length > maxLen) {
-    p = "..." + p.slice(p.length - maxLen + 3);
+    p = `...${p.slice(p.length - maxLen + 3)}`;
   }
   return p;
 }

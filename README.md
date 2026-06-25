@@ -57,7 +57,8 @@ npx simple-mcp-manager --ui --port 8080
 ```bash
 npm install -g simple-mcp-manager
 mcp-manager                   # Terminal UI (default)
-simple-mcp-manager --ui       # Web UI (either binary name works)
+mcp-mgr --ui                  # Web UI (short alias)
+simple-mcp-manager --ui       # Web UI (full name)
 ```
 
 **Clone and run from source:**
@@ -83,7 +84,7 @@ A **standalone CLI** you run in a separate terminal. It is **not** an MCP server
 
 **Limitations to be aware of:**
 
-- **HTTP / HTTPS MCP endpoints** are listed for context but are not local processes you can kill or restart from this tool
+- **HTTP / HTTPS / SSE MCP endpoints** are listed with health probes but are not local processes you can kill or restart from this tool
 - **Log capture** for a server is tied to processes the manager starts or restarts; servers already running before you open the manager may show “logs not available” until you restart them from the UI (see screenshots)
 - Process matching is heuristic (command line, package names); unusual spawn setups may not classify perfectly
 
@@ -94,12 +95,15 @@ A **standalone CLI** you run in a separate terminal. It is **not** an MCP server
 | TUI (default) | `simple-mcp-manager` | Full-screen terminal interface |
 | Web UI | `simple-mcp-manager --ui` | HTTP server on localhost |
 | Web UI port | `--ui --port <n>` | Preferred port (default **3000**); must be 1–65535 |
+| Validate configs | `--validate` | Check all MCP JSON configs; exit 1 on errors |
+| Workspace root | `--cwd <path>` | Directory for workspace-relative config discovery |
+| Extra scan dirs | `--scan-dir <path>` | Additional roots to scan (repeatable) |
 
 **Rules:**
 
 - The Web UI flag must be **`--ui`** (there is no `-ui` shorthand).
 - If the preferred port is busy, the server tries the next ports up (same behavior as before), within a limited range.
-- **Bin names:** `mcp-manager` and `simple-mcp-manager` (see `package.json` `bin`).
+- **Bin names:** `mcp-manager`, `mcp-mgr`, and `simple-mcp-manager` (see `package.json` `bin`).
 
 ## Supported tools & config locations
 
@@ -129,6 +133,8 @@ The TUI shows a sortable-style table (agent, server name, status, PID, command, 
 | `F5` | Manual refresh |
 | `d` | Server details modal |
 | `l` | Logs (when applicable; from details or global shortcut) |
+| `/` | Search/filter servers |
+| `e` | Export captured logs to file |
 | Up / Down | Move selection |
 | `q` | Quit |
 
@@ -140,9 +146,10 @@ Run with **`--ui`**. Open the URL printed in the terminal (by default **`http://
 
 Features mirror the TUI in the browser:
 
-- Sortable server table with status colors
+- Sortable server table with status colors and search box
 - Auto-refresh (5s typical, **15s on WSL**)
-- Buttons: Refresh, Restart, Kill, Kill All, Restart All Stopped, Details, Logs
+- Buttons: Refresh, Restart, Kill, Kill All, Restart All Stopped, Details, Logs, Export Logs
+- HTTP/SSE endpoint health (ok/down/latency in status and details)
 - Details and log modals; activity log pane
 - Keyboard shortcuts aligned with the TUI (`r`, `k`, `K`, `a`, `d`, `l`, `F5`, arrows, Esc)
 
@@ -153,7 +160,7 @@ The page is self-contained HTML/CSS/JS—no bundler or extra assets needed.
 Prefer **`--port`**:
 
 ```bash
-mcp-manager --ui --port 8080
+mcp-mgr --ui --port 8080
 ```
 
 Default port is **3000**. If unavailable, higher ports are tried automatically (bounded search).

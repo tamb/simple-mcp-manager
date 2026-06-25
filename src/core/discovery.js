@@ -1,9 +1,47 @@
-"use strict";
-
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const { TOOLS } = require("../config/tools");
 const { fileLog } = require("../utils/logger");
+
+// ── Discovery Options ───────────────────────────────────────────────────────
+
+/** @type {{ cwd: string, scanDirs: string[] }} */
+const discoveryOptions = {
+  cwd: process.cwd(),
+  scanDirs: [],
+};
+
+/**
+ * Configure discovery roots for workspace-relative config scanning.
+ * @param {{ cwd?: string, scanDirs?: string[] }} opts
+ */
+function setDiscoveryOptions(opts = {}) {
+  if (opts.cwd) {
+    discoveryOptions.cwd = path.resolve(opts.cwd);
+  }
+  if (opts.scanDirs) {
+    discoveryOptions.scanDirs = opts.scanDirs.map((d) => path.resolve(d));
+  }
+}
+
+function getDiscoveryOptions() {
+  return { ...discoveryOptions };
+}
+
+/**
+ * Stable identifier for a server entry.
+ * @param {string} configPath
+ * @param {string} name
+ * @returns {string}
+ */
+function makeServerId(configPath, name) {
+  return `${path.resolve(configPath)}::${name}`;
+}
+
+function getWorkspaceRoots() {
+  const roots = [discoveryOptions.cwd, ...discoveryOptions.scanDirs];
+  return [...new Set(roots.map((r) => path.resolve(r)))];
+}
 
 // ── Config Discovery ────────────────────────────────────────────────────────
 
@@ -32,7 +70,7 @@ function findMcpConfigs() {
         try {
           for (const entry of fs.readdirSync(projDir)) {
             const projCfg = path.join(projDir, entry, tool.projectGlob || "mcp.json");
-            addConfig(projCfg, tool, `project`);
+            addConfig(projCfg, tool, "project");
           }
         } catch (e) {
           fileLog("ERROR", `Error reading project dir: ${projDir}`, e);
@@ -40,10 +78,12 @@ function findMcpConfigs() {
       }
     }
 
-    // Workspace-level configs (relative to cwd)
-    for (const rel of tool.paths.workspace) {
-      const fullPath = path.join(process.cwd(), rel);
-      addConfig(fullPath, tool, "workspace");
+    // Workspace-level configs (relative to cwd and extra scan dirs)
+    for (const root of getWorkspaceRoots()) {
+      for (const rel of tool.paths.workspace) {
+        const fullPath = path.join(root, rel);
+        addConfig(fullPath, tool, root === discoveryOptions.cwd ? "workspace" : "scan-dir");
+      }
     }
   }
 
@@ -59,13 +99,12 @@ function parseMcpConfig(configPath, configKey, tool, source) {
 
     // Try the tool's preferred key first, then fall back to the other common key
     const mcpServers =
-      data[configKey] ||
-      data[configKey === "mcpServers" ? "servers" : "mcpServers"] ||
-      {};
+      data[configKey] || data[configKey === "mcpServers" ? "servers" : "mcpServers"] || {};
 
     for (const [name, cfg] of Object.entries(mcpServers)) {
       if (!cfg || typeof cfg !== "object") continue;
       servers.push({
+        id: makeServerId(configPath, name),
         name,
         command: cfg.command || "",
         args: cfg.args || [],
@@ -83,10 +122,16 @@ function parseMcpConfig(configPath, configKey, tool, source) {
         sharedPid: null,
         logs: [],
         logsCapturing: false,
+        httpHealth: null,
+        httpLatencyMs: null,
+        searchTerms: [],
       });
     }
-    fileLog("DEBUG", `Parsed ${servers.length} server(s) from ${configPath} [${tool}]`,
-      servers.map((s) => s.name));
+    fileLog(
+      "DEBUG",
+      `Parsed ${servers.length} server(s) from ${configPath} [${tool}]`,
+      servers.map((s) => s.name),
+    );
   } catch (e) {
     fileLog("ERROR", `Failed to parse config: ${configPath}`, e);
   }
@@ -97,26 +142,24 @@ function loadAllServers() {
   const configs = findMcpConfigs();
   const allServers = [];
   for (const cfg of configs) {
-    allServers.push(
-      ...parseMcpConfig(cfg.path, cfg.configKey, cfg.tool, cfg.source)
-    );
+    allServers.push(...parseMcpConfig(cfg.path, cfg.configKey, cfg.tool, cfg.source));
   }
 
-  // Deduplicate by configPath+serverName so the same server definition
-  // from the same file only appears once (first tool to claim the file wins,
-  // controlled by TOOLS array order and findMcpConfigs' seen set).
+  // Deduplicate by id so the same server definition from the same file
+  // only appears once.
   const seen = new Map();
   for (const s of allServers) {
-    const resolved = path.resolve(s.configPath);
-    const key = `${resolved}::${s.name}`;
-    if (!seen.has(key)) {
-      seen.set(key, s);
+    if (!seen.has(s.id)) {
+      seen.set(s.id, s);
     }
   }
   return Array.from(seen.values());
 }
 
 module.exports = {
+  setDiscoveryOptions,
+  getDiscoveryOptions,
+  makeServerId,
   findMcpConfigs,
   parseMcpConfig,
   loadAllServers,

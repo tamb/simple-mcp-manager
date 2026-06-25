@@ -23,6 +23,19 @@ node index.js --ui
 
 # Web UI with custom port
 node index.js --ui --port 8080
+
+# Validate MCP config files
+node index.js --validate
+
+# Scan extra workspace directories
+node index.js --scan-dir /path/to/project --cwd /path/to/project
+```
+
+### 3. Run Tests
+
+```bash
+npm test
+npm run lint
 ```
 
 ## Testing Globally with `npm link`
@@ -36,15 +49,16 @@ To test the package as if it were installed globally from npm (useful for testin
 npm link
 ```
 
-This creates a global symlink to your local package, making the `mcp-manager` and `simple-mcp-manager` commands available globally.
+This creates a global symlink to your local package, making the `mcp-manager`, `mcp-mgr`, and `simple-mcp-manager` commands available globally.
 
 ### Test the Linked Package
 
 ```bash
 # Now you can run it from anywhere on your system
 mcp-manager              # Terminal UI mode
-mcp-manager --ui       # Web UI mode
-simple-mcp-manager     # Alternative command name
+mcp-mgr --ui             # Web UI mode (short alias)
+simple-mcp-manager       # Alternative command name
+mcp-mgr --validate       # Validate configs
 ```
 
 ### Unlink When Done
@@ -67,18 +81,18 @@ To test the exact package that would be published to npm:
 npm pack
 ```
 
-This creates a tarball (e.g., `simple-mcp-manager-0.1.0.tgz`) in the current directory.
+This creates a tarball (e.g., `simple-mcp-manager-0.2.0.tgz`) in the current directory.
 
 ### 2. Install the Pack Globally
 
 ```bash
-npm install -g simple-mcp-manager-0.1.0.tgz
+npm install -g simple-mcp-manager-0.2.0.tgz
 ```
 
 ### 3. Test It
 
 ```bash
-mcp-manager --ui
+mcp-mgr --ui
 ```
 
 ### 4. Uninstall
@@ -93,6 +107,9 @@ npm uninstall -g simple-mcp-manager
 - Use semicolons
 - Keep functions focused and modular
 - Add JSDoc comments for exported functions
+- [Biome](https://biomejs.dev/) enforces formatting and lint rules (`biome.json`)
+- Run `npm run lint` before submitting
+- Run `npm run format` or `npm run check` to auto-fix formatting and safe lint fixes
 
 ## Project Structure
 
@@ -105,14 +122,20 @@ simple-mcp-manager/
 │   │   ├── constants.js  # Platform paths & constants
 │   │   └── tools.js      # Tool-specific config parsing
 │   ├── core/             # Core functionality
+│   │   ├── actions.js    # Shared restart/kill actions
 │   │   ├── discovery.js  # Server discovery from configs
-│   │   └── processes.js  # Process management (kill, start)
+│   │   ├── processes.js  # Process management (kill, start)
+│   │   ├── serverState.js # Server list merge/sort/filter
+│   │   └── validate.js   # Config validation
 │   ├── ui/               # User interfaces
 │   │   ├── tui.js        # Terminal UI (blessed)
-│   │   └── web.js        # Web UI (HTTP server)
+│   │   └── web/          # Web UI (HTTP server + static SPA)
 │   └── utils/            # Utilities
 │       ├── logger.js     # File logging
-│       └── path.js       # Path helpers
+│       ├── path.js       # Path helpers
+│       ├── sanitize.js   # Env redaction for API/display
+│       └── display.js    # Shared formatting helpers
+├── test/                 # node:test suite
 └── README.md             # User documentation
 ```
 
@@ -121,10 +144,11 @@ simple-mcp-manager/
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Make your changes
-4. Test locally using `npm link` or `npm pack`
-5. Commit with clear messages
-6. Push to your fork
-7. Open a pull request
+4. Run `npm test` and `npm run lint`
+5. Test locally using `npm link` or `npm pack`
+6. Commit with clear messages
+7. Push to your fork
+8. Open a pull request
 
 ## Questions?
 

@@ -1,6 +1,4 @@
-"use strict";
-
-const path = require("path");
+const path = require("node:path");
 const { IS_WIN, IS_MAC, IS_WSL, HOME, WIN_HOME, APPDATA, XDG_CONFIG } = require("./constants");
 
 // ── Tool Definitions ────────────────────────────────────────────────────────
@@ -50,7 +48,16 @@ const TOOLS = [
         ...(IS_WIN
           ? [path.join(APPDATA, "Windsurf", "User", "mcp_config.json")]
           : IS_MAC
-            ? [path.join(HOME, "Library", "Application Support", "Windsurf", "User", "mcp_config.json")]
+            ? [
+                path.join(
+                  HOME,
+                  "Library",
+                  "Application Support",
+                  "Windsurf",
+                  "User",
+                  "mcp_config.json",
+                ),
+              ]
             : [path.join(XDG_CONFIG, "Windsurf", "User", "mcp_config.json")]),
         ...(IS_WSL && APPDATA ? [path.join(APPDATA, "Windsurf", "User", "mcp_config.json")] : []),
       ],
@@ -67,7 +74,15 @@ const TOOLS = [
         ...(IS_WIN
           ? [path.join(APPDATA, "Claude", "claude_desktop_config.json")]
           : IS_MAC
-            ? [path.join(HOME, "Library", "Application Support", "Claude", "claude_desktop_config.json")]
+            ? [
+                path.join(
+                  HOME,
+                  "Library",
+                  "Application Support",
+                  "Claude",
+                  "claude_desktop_config.json",
+                ),
+              ]
             : [path.join(XDG_CONFIG, "claude", "claude_desktop_config.json")]),
         ...(IS_WSL && APPDATA ? [path.join(APPDATA, "Claude", "claude_desktop_config.json")] : []),
       ],
@@ -94,10 +109,7 @@ const TOOLS = [
     name: "Claude Code",
     configKey: "mcpServers",
     paths: {
-      global: [
-        path.join(HOME, ".claude", "mcp.json"),
-        path.join(HOME, ".claude.json"),
-      ],
+      global: [path.join(HOME, ".claude", "mcp.json"), path.join(HOME, ".claude.json")],
       projects: [],
       workspace: [".claude/mcp.json"],
     },

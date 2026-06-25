@@ -1,0 +1,17 @@
+# Normalize line endings to LF in the repository and working tree.
+* text=auto eol=lf
+
+# Shell scripts must stay LF (shebang + Unix execution).
+*.sh text eol=lf
+
+# Windows-only launchers may use CRLF when added in the future.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
